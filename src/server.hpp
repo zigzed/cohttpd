@@ -16,10 +16,18 @@ namespace coh {
     public:
         typedef std::shared_ptr<spdlog::logger >    spdlogs_t;
         struct options {
-            size_t                  max_header_size = 8192;
-            size_t                  max_body_size   = 10 * 1024 * 1024;
-            size_t                  iobuf_size      = max_header_size;
-            size_t                  iobuf_count     = 16384;
+            struct cfg_memory {
+                size_t iobuf_size       = 8192;
+                size_t iobuf_count      = 16384;
+                size_t max_header_size  = iobuf_size;
+                size_t max_body_size    = 10 * 1024 * 1024;
+            };
+            struct cfg_logger {
+                std::string path        = "../log";
+                bool        cout        = true;
+            };
+            cfg_memory              memory;
+            cfg_logger              logger;
             int                     reuse_port      = 0;
             int                     serve_port      = 80;
             int                     process         = 2;
@@ -28,8 +36,6 @@ namespace coh {
             std::string             mod_path;
             modules*                handler;
             spdlogs_t               coh_log;
-
-            options();
         };
 
         static http_service& instance();

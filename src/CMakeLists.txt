@@ -1,6 +1,7 @@
 
 include_directories(${COHTTP_ROOT}/src/3rd/libgo)
 include_directories(${COHTTP_ROOT}/src/3rd/spdlog/include)
+include_directories(${COHTTP_ROOT}/src/3rd/yaml-cpp/include)
 #include_directories(${COHTTP_ROOT}/src/3rd/asio-1.10.8/include)
 
 set(COHTTP_SRC
@@ -16,7 +17,7 @@ set(COHTTP_SRC
     modules.hpp modules.cpp
    )
 add_executable(cohttp ${COHTTP_SRC})
-target_link_libraries(cohttp libgo boost_context boost_system boost_filesystem pthread dl)
+target_link_libraries(cohttp libgo boost_context boost_system boost_filesystem yaml-cpp pthread dl)
 
 add_library(mod_default MODULE
     modules/default.hpp modules/default.cpp

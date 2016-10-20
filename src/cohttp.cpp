@@ -18,6 +18,8 @@
 #include "server.hpp"
 #include "modules.hpp"
 
+#include "yaml-cpp/yaml.h"
+
 
 #ifndef SO_REUSEPORT
 #define SO_REUSEPORT    15
@@ -43,18 +45,13 @@ private:
     coh::semops&                mutex_;
 };
 
-static void is_alive();
+static void                         is_alive    ();
+static coh::http_service::options   load_config (const char* file);
 
 int main(int argc, char* argv[])
 {
-    coh::http_service::options options;
-    options.timer_idle  = seconds(5);
-    options.timer_life  = minutes(1);
-    options.reuse_port  = 0;
-    options.serve_port  = 8080;
-    options.process     = 2;
-    options.mod_path    = "modules";
-    options.coh_log     = initlog(false);
+    coh::http_service::options options = load_config(argv[1]);
+    options.coh_log     = initlog(options.logger.path.c_str(), options.logger.cout);
     auto clog = options.coh_log;
 
     rlimit rl;
@@ -165,4 +162,69 @@ void check_alive::check()
     }
 
     co_timer_add(seconds(5), std::bind(&check_alive::check, this));
+}
+
+coh::http_service::options load_config(const char* file)
+{
+    coh::http_service::options options;
+    try {
+        YAML::Node config = YAML::LoadFile(file);
+
+        if(config["ListenPort"]) {
+            options.serve_port  = config["ListenPort"].as<unsigned short >();
+        }
+        if(config["ModulePath"]) {
+            options.mod_path    = config["ModulePath"].as<std::string >();
+        }
+        if(config["CpuUsed"]) {
+            options.process     = config["CpuUsed"].as<int >();
+        }
+        const YAML::Node& connections   = config["Connection"];
+        if(connections["IdleTimer"]) {
+            options.timer_idle  = seconds(connections["IdleTimer"].as<int >());
+        }
+        if(connections["LifeTimer"]) {
+            options.timer_life  = seconds(connections["LifeTimer"].as<int >());
+        }
+        if(connections["MaxHeaderSize"]) {
+            options.memory.max_header_size= connections["MaxHeaderSize"].as<int >();
+        }
+        if(connections["MaxBodySize"]) {
+            options.memory.max_body_size= connections["MaxBodySize"].as<int >() * 1024 * 1024;
+        }
+
+        const YAML::Node& memory        = config["Memory"];
+        if(memory["ChunkSize"]) {
+            options.memory.iobuf_size   = memory["ChunkSize"].as<int >();
+        }
+        if(memory["ChunkCount"]) {
+            options.memory.iobuf_count  = memory["ChunkCount"].as<int >();
+        }
+
+        const YAML::Node& logger        = config["Logger"];
+        if(logger["Path"]) {
+            options.logger.path         = logger["Path"].as<std::string >();
+        }
+        if(logger["console"]) {
+            options.logger.cout         = true;
+        }
+    }
+    catch(const YAML::ParserException& e) {
+        fprintf(stderr, "parsing config file %s failed: %s\r\n",
+                file, e.what());
+    }
+    catch(const YAML::BadFile& e) {
+        fprintf(stderr, "loading config file %s failed: %s\r\n",
+                file, e.what());
+    }
+    catch(const YAML::InvalidNode& e) {
+        fprintf(stderr, "process config file %s failed: %s\r\n",
+                file, e.what());
+    }
+    catch(const YAML::BadConversion& e) {
+        fprintf(stderr, "process config file %s failed: %s\r\n",
+                file, e.what());
+    }
+
+    return options;
 }

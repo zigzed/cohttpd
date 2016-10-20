@@ -1,0 +1,17 @@
+ListenPort:	8080
+ModulePath:	modules
+CpuUsed:	2
+
+Connection:
+  IdleTimer:	 5  
+  LifeTimer:	 -1 
+  MaxHeaderSize: 8192 
+  MaxBodySize:	 10 
+
+Memory:
+  ChunkSize:	8192 
+  ChunkCount:	16384
+
+Logger:
+  Path:		../log
+  console:	Yes

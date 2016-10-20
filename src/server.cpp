@@ -12,9 +12,9 @@
 
 namespace coh {
 
-    http_service::options::options()
-    {
-    }
+//    http_service::options::options()
+//    {
+//    }
 
     http_service& http_service::instance()
     {
@@ -36,9 +36,9 @@ namespace coh {
         acc_ = acc;
         sem_ = sem;
         opt_ = opt;
-        mem_ = std::shared_ptr<iobufs >(new iobufs(opt.iobuf_size, opt.iobuf_count));
+        mem_ = std::shared_ptr<iobufs >(new iobufs(opt.memory.iobuf_size, opt.memory.iobuf_count));
 
-        opt_.coh_log = initlog(true);
+        opt_.coh_log = initlog(opt.logger.path.c_str(), opt.logger.cout);
     }
 
     http_service::~http_service()
@@ -121,8 +121,10 @@ namespace coh {
 
         addrs_ = trans->remote_endpoint();
 
-        timer_life_ = co_timer_add(steady_clock::now() + option_.timer_life,
-                                   std::bind(&http_connection::on_life_expired, this));
+        if(option_.timer_life != seconds(-1)) {
+            timer_life_ = co_timer_add(steady_clock::now() + option_.timer_life,
+                                       std::bind(&http_connection::on_life_expired, this));
+        }
     }
 
     http_connection::~http_connection()
@@ -188,9 +190,9 @@ namespace coh {
                 return false;
             iobuf_set_w_len(iov, n);
             header_size += n;
-            if(header_size > option_.max_header_size) {
+            if(header_size > option_.memory.max_header_size) {
                 clog->error("{}:{}\theader size {} run out of range {}",
-                            header_size, option_.max_header_size);
+                            header_size, option_.memory.max_header_size);
                 return false;
             }
         } while(!request.headers_completed());
@@ -239,9 +241,9 @@ namespace coh {
                 return false;
             iobuf_set_w_len(iov, n);
             body_size += n;
-            if(body_size > option_.max_body_size) {
+            if(body_size > option_.memory.max_body_size) {
                 clog->error("{}:{}\body size {} run out of range {}",
-                            body_size, option_.max_body_size);
+                            body_size, option_.memory.max_body_size);
                 return false;
             }
         } while(!request.message_completed());
