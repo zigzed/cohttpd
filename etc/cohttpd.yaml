@@ -3,7 +3,7 @@ ModulePath:	modules
 CpuUsed:	2
 
 Connection:
-  IdleTimer:	 5  
+  IdleTimer:	 30  
   LifeTimer:	 -1 
   MaxHeaderSize: 8192 
   MaxBodySize:	 10 
@@ -15,3 +15,7 @@ Memory:
 Logger:
   Path:		../log
   console:	Yes
+
+Modules:
+  libmod_redis:
+    servers:	[127.0.0.1:6379,127.0.0.1:6380]

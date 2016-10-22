@@ -8,12 +8,15 @@
 
 namespace coh {
 
-    void modules::setup(http_service::options option, const char* path)
+    void modules::setup(http_service::options option, const char* path, const char* config)
     {
-        module_handler* (*mod_handler)(http_service::options);
+        module_handler* (*mod_handler)(http_service::options, YAML::Node );
 
         boost::filesystem::path p(path);
         try {
+            YAML::Node modcfg = YAML::LoadFile(config);
+            modcfg = modcfg["Modules"];
+
             if(!boost::filesystem::exists(p)) {
                 return;
             }
@@ -32,7 +35,7 @@ namespace coh {
                 }
                 // 清除错误信息
                 dlerror();
-                mod_handler = (module_handler* (*)(http_service::options))dlsym(lib, "create_module");
+                mod_handler = (module_handler* (*)(http_service::options, YAML::Node ))dlsym(lib, "create_module");
                 const char* rc = dlerror();
                 if(rc != NULL) {
                     option.coh_log->warn("loading module {} failed: {}",
@@ -42,7 +45,13 @@ namespace coh {
                     continue;
                 }
 
-                module_handler* mh = mod_handler(option);
+                module_handler* mh = nullptr;
+                if(modcfg[boost::filesystem::basename(x.path()).c_str()]) {
+                    mh = mod_handler(option, modcfg[boost::filesystem::basename(x.path()).c_str()]);
+                }
+                else {
+                    mh = mod_handler(option, YAML::Node());
+                }
                 if(mh) {
                     setup_handler(mh->path(), mh);
                     option.coh_log->info("loading module {} done",
@@ -51,6 +60,10 @@ namespace coh {
             }
         }
         catch(const boost::filesystem::filesystem_error& e) {
+            option.coh_log->error("setup modules on path {} failed: {}",
+                                  path, e.what());
+        }
+        catch(const std::runtime_error& e) {
             option.coh_log->error("setup modules on path {} failed: {}",
                                   path, e.what());
         }

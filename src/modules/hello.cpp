@@ -1,8 +1,8 @@
 #include "hello.hpp"
 
 
-hello_module::hello_module(http_service::options option)
-    : module_handler(option)
+hello_module::hello_module(http_service::options option, YAML::Node config)
+    : module_handler(option, config)
     , option_(option)
 {
 }

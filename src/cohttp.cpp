@@ -32,17 +32,20 @@ io_service  ios;
 
 static void do_fork (coh::http_service::options& options,
                      tcp::acceptor&              acceptor,
-                     coh::semops&                mutex);
+                     coh::semops&                mutex,
+                     const char*                 config);
 
 struct check_alive {
     check_alive(coh::http_service::options& options,
                 tcp::acceptor&              acceptor,
-                coh::semops&                mutex);
+                coh::semops&                mutex,
+                const std::string&          config);
     void check();
 private:
     coh::http_service::options& options_;
     tcp::acceptor&              acceptor_;
     coh::semops&                mutex_;
+    std::string                 config_;
 };
 
 static void                         is_alive    ();
@@ -50,7 +53,9 @@ static coh::http_service::options   load_config (const char* file);
 
 int main(int argc, char* argv[])
 {
-    coh::http_service::options options = load_config(argv[1]);
+    const char* config = argv[1];
+
+    coh::http_service::options options = load_config(config);
     options.coh_log     = initlog(options.logger.path.c_str(), options.logger.cout);
     auto clog = options.coh_log;
 
@@ -96,10 +101,10 @@ int main(int argc, char* argv[])
         tcp_acceptor.listen();
 
         for(int i = 0; i < options.process; ++i) {
-            do_fork(options, tcp_acceptor, acceptor_mutex);
+            do_fork(options, tcp_acceptor, acceptor_mutex, config);
         }
 
-        check_alive monitor(options, tcp_acceptor, acceptor_mutex);
+        check_alive monitor(options, tcp_acceptor, acceptor_mutex, config);
         // 监控各个子进程的状态，每隔5秒检查一次子进程的运行状态
         co_timer_add(seconds(5), std::bind(&check_alive::check, &monitor));
 
@@ -120,32 +125,41 @@ int main(int argc, char* argv[])
 
 void do_fork(coh::http_service::options& options,
              tcp::acceptor&              acceptor,
-             coh::semops&                mutex)
+             coh::semops&                mutex,
+             const char*                 config)
 {
     int rc = fork();
     if(rc == 0) {
-        coh::modules    module_manager;
-        module_manager.setup(options, options.mod_path.c_str());
-        options.handler = &module_manager;
+        try {
+            coh::modules    module_manager;
+            module_manager.setup(options, options.mod_path.c_str(), config);
+            options.handler = &module_manager;
 
-        coh::http_service& service = coh::http_service::instance();
-        service.setup(&ios,
-                      &acceptor,
-                      &mutex,
-                      options);
+            coh::http_service& service = coh::http_service::instance();
+            service.setup(&ios,
+                          &acceptor,
+                          &mutex,
+                          options);
 
-        go std::bind(&coh::http_service::start, service);
+            go std::bind(&coh::http_service::start, service);
 
-        co_sched.RunLoop();
+            co_sched.RunLoop();
+        }
+        catch(const std::runtime_error& e) {
+            options.coh_log->error("forking service failed: {}",
+                                   e.what());
+        }
     }
 }
 
 check_alive::check_alive(coh::http_service::options& options,
                          tcp::acceptor&              acceptor,
-                         coh::semops&                mutex)
+                         coh::semops&                mutex,
+                         const std::string&          config)
     : options_(options)
     , acceptor_(acceptor)
     , mutex_(mutex)
+    , config_(config)
 {
 }
 
@@ -158,7 +172,7 @@ void check_alive::check()
         count++;
     }
     for(int i = 0; i < count; ++i) {
-        do_fork(options_, acceptor_, mutex_);
+        do_fork(options_, acceptor_, mutex_, config_.c_str());
     }
 
     co_timer_add(seconds(5), std::bind(&check_alive::check, this));

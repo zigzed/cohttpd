@@ -8,6 +8,7 @@
 #include "server.hpp"
 #include "request.hpp"
 #include "response.hpp"
+#include "yaml-cpp/yaml.h"
 
 namespace coh {
 
@@ -28,7 +29,8 @@ namespace coh {
 
         virtual ~module_handler() {}
 
-        explicit module_handler(http_service::options option) {}
+        explicit module_handler(http_service::options option,
+                                YAML::Node            config) {}
         virtual int  handle_events    () = 0;
         virtual const char* path      () const = 0;
         virtual const char* name      () const = 0;

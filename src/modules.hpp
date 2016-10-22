@@ -15,7 +15,7 @@ namespace coh {
 
     class modules {
     public:
-        void                                setup(http_service::options option, const char* path);
+        void                                setup(http_service::options option, const char* path, const char* config);
         bool                                setup_handler(const char* path, module_handler* mh);
         std::shared_ptr<module_handler >    match_handler(const char* path) const;
         std::vector<std::shared_ptr<module_handler > >  list_handler() const;

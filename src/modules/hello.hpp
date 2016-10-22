@@ -10,7 +10,8 @@ using namespace coh;
 
 class hello_module : public module_handler {
 public:
-    hello_module(http_service::options option);
+    hello_module(http_service::options option,
+                 YAML::Node            config);
     int  handle_events();
     const char* path() const;
     const char* name() const;
@@ -22,9 +23,10 @@ private:
     http_service::options option_;
 };
 
-extern "C" module_handler* create_module(http_service::options option)
+extern "C" module_handler* create_module(http_service::options  option,
+                                         YAML::Node             config)
 {
-    return new hello_module(option);
+    return new hello_module(option, config);
 }
 
 #endif

@@ -1,8 +1,9 @@
 #include "default.hpp"
 
 
-default_module::default_module(http_service::options option)
-    : module_handler(option)
+default_module::default_module(http_service::options option,
+                               YAML::Node            config)
+    : module_handler(option, config)
     , option_(option)
 {
 }
