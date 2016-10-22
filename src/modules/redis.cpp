@@ -68,7 +68,8 @@ void redis_module::on_process_init()
         const endpoint& ep = config_[i];
         // 对于每个进程启动一个 redis 连接，这个连接接收命令，并将对应的响应数据送到相应的连接
         go [i, ep, this] {
-            bool connected = false;
+            enum connection_state { unknown, connected, disconnected };
+            connection_state cs = unknown;
             std::shared_ptr<redisContext > context;
             while(running_) {
                 if(context.get() == NULL || (context.get() && context->err)) {
@@ -76,15 +77,20 @@ void redis_module::on_process_init()
                                                              [] (redisContext* c) { redisFree(c); });
                 }
                 if(context.get() == NULL || (context.get() && context->err)) {
-                    option_.coh_log->error("connecting redis {}:{} failed: {}",
-                                           ep.host, ep.port,
-                                           context.get() ? context->errstr : "allocate redis context");
+                    if(cs != disconnected) {
+                        option_.coh_log->error("connecting redis {}:{} failed: {}",
+                                               ep.host, ep.port,
+                                               context.get() ? context->errstr : "allocate redis context");
+                    }
+                    cs = disconnected;
                     // 如果连接失败则等待1秒后重试
                     co_sleep(1000);
                     continue;
                 }
-                if(!connected) {
-
+                if(cs != connected) {
+                    cs = connected;
+                    option_.coh_log->info("connecting redis {}:{} done",
+                                          ep.host, ep.port);
                 }
                 command cmd;
                 *redis_order_[i] >> cmd;
